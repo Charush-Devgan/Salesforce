@@ -1,0 +1,147 @@
+public class TOSC_LeadTriggerServiceClass { 
+    public static Map<String,TOSC_LeadScore__c> mapOfCentreVsLeadScore =  new Map<String,TOSC_LeadScore__c>(); 
+    
+    public static Map<String, Schema.SObjectField> mapOfFields = Schema.SObjectType.Lead.fields.getMap();
+    
+    public static void updateLeadScorePoints(List<Lead> listOfLeads) {
+        try{
+            for(TOSC_LeadScore__c objLSRec : [SELECT Id, TOSC_CenterName__c,(SELECT Id, TOSC_Type__c, TOSC_LeadScore__c, TOSC_FieldName__c,TOSC_Operator__c, TOSC_Value__c, TOSC_Point__c from Lead_Scorings__r where TOSC_Active__c=true) from TOSC_LeadScore__c limit 100]){
+                mapOfCentreVsLeadScore.put(objLSRec.TOSC_CenterName__c ,objLSRec);    
+            }	
+            
+            for( Lead leadRec : listOfLeads ){
+                calculateLeadScore(leadRec);
+            }    
+        }catch(Exception errorObj){
+            System.debug('Line No.      ::'+errorObj.getMessage());
+            System.debug('Error Message ::'+errorObj.getLineNumber());
+        }
+        
+    }
+    
+    public static void calculateLeadScore(Lead leadRec){
+        List<TOSC_LeadScoringRule__c> leadScoreRules = mapOfCentreVsLeadScore.get(leadRec.TOSC_Center__c)?.Lead_Scorings__r;        
+        Decimal tempScore = 0;
+        for(TOSC_LeadScoringRule__c lSRObj : leadScoreRules){
+            if(lSRObj.TOSC_Type__c == 'Field check'){
+                //For deciding the datatype of the field
+                Schema.SObjectField field = mapOfFields.get(lSRObj.TOSC_FieldName__c);
+                Schema.DisplayType FldType = field.getDescribe().getType();
+                
+                String fieldValue = String.valueOf(leadRec.get(lSRObj.TOSC_FieldName__c)!=null ? leadRec.get(lSRObj.TOSC_FieldName__c):'');
+                
+                if(lSRObj.TOSC_Operator__c == 'equals'){     
+                    tempScore += equalsToOperation(lSRObj.TOSC_Value__c, fieldValue, FldType)? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'not equal to'){
+                    tempScore += notEqualsToOperation(lSRObj.TOSC_Value__c, fieldValue, FldType)? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'greater than'){
+                    tempScore += greaterThanOperation(lSRObj.TOSC_Value__c, fieldValue, FldType)? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'less than'){
+                    tempScore += lessThanOperation(lSRObj.TOSC_Value__c, fieldValue, FldType)? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'greater or equal'){
+                    tempScore += greaterOrEqualOperation(lSRObj.TOSC_Value__c, fieldValue, FldType)? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'less or equal'){
+                    tempScore += lessOrEqualOperation(lSRObj.TOSC_Value__c, fieldValue, FldType)? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'contains'){
+                    tempScore += containsOperation(lSRObj.TOSC_Value__c, fieldValue)? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'does not contain'){
+                    tempScore += doesNotContainOperation(lSRObj.TOSC_Value__c, fieldValue) ? lSRObj.TOSC_Point__c : 0;
+                }else if(lSRObj.TOSC_Operator__c == 'starts with'){
+                    tempScore += startsWithOperation(lSRObj.TOSC_Value__c, fieldValue )? lSRObj.TOSC_Point__c : 0;
+                }  											              
+            }
+        }
+        leadRec.TOSC_LeadScore__c = tempScore;
+        System.debug('Score ::'+tempScore);
+    }
+    
+    public static boolean equalsToOperation(String ruleFieldvalue, String recordFieldValue , DisplayType ruleFieldtype){
+        
+        if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.STRING || ruleFieldType==Schema.DisplayType.ComboBox ||ruleFieldType==Schema.DisplayType.Picklist ||ruleFieldType==Schema.DisplayType.email||ruleFieldType==Schema.DisplayType.encryptedString||ruleFieldType==Schema.DisplayType.Phone||ruleFieldType==Schema.DisplayType.url)){
+            return  (ruleFieldValue.equalsIgnoreCase(recordFieldValue));
+        } else if (ruleFieldType==Schema.DisplayType.BOOLEAN){
+            return (recordFieldValue.toLowerCase() == ruleFieldValue.toLowerCase());
+        } else if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.Double||ruleFieldType==Schema.DisplayType.Currency||ruleFieldType==Schema.DisplayType.Percent ||ruleFieldType==Schema.DisplayType.Integer)){  
+            return (decimal.valueOf(recordFieldValue) == decimal.valueOf(ruleFieldValue));
+        }
+        return false;
+    }
+    
+    public static boolean notEqualsToOperation(String ruleFieldvalue, String recordFieldValue , DisplayType ruleFieldtype){
+        
+        if (ruleFieldType == Schema.DisplayType.BOOLEAN){
+            return !(ruleFieldValue.equalsIgnoreCase(recordFieldValue));
+        } else if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.Double||ruleFieldType==Schema.DisplayType.Currency||ruleFieldType==Schema.DisplayType.Percent ||ruleFieldType==Schema.DisplayType.Integer)){
+            return (decimal.valueOf(recordFieldValue)!=decimal.valueOf(ruleFieldValue));
+        } else if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.STRING || ruleFieldType==Schema.DisplayType.ComboBox ||ruleFieldType==Schema.DisplayType.Picklist ||ruleFieldType==Schema.DisplayType.email||ruleFieldType==Schema.DisplayType.encryptedString||ruleFieldType==Schema.DisplayType.Phone||ruleFieldType==Schema.DisplayType.url)){
+            return (recordFieldValue.toLowerCase()!=ruleFieldValue.toLowerCase());
+        }
+        return false;
+    }
+    
+    public static boolean greaterThanOperation(String ruleFieldvalue, String recordFieldValue , DisplayType ruleFieldtype){
+        
+        if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.STRING || ruleFieldType==Schema.DisplayType.ComboBox ||ruleFieldType==Schema.DisplayType.Picklist ||ruleFieldType==Schema.DisplayType.email||ruleFieldType==Schema.DisplayType.encryptedString||ruleFieldType==Schema.DisplayType.Phone||ruleFieldType==Schema.DisplayType.url)){
+            return (recordFieldValue.toLowerCase()>ruleFieldValue.toLowerCase());
+        } else if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.Double||ruleFieldType==Schema.DisplayType.Currency||ruleFieldType==Schema.DisplayType.Percent ||ruleFieldType==Schema.DisplayType.Integer)){
+            return (decimal.valueOf(recordFieldValue)>decimal.valueOf(ruleFieldValue));
+        }
+        return false;
+    }
+    
+    public static boolean lessThanOperation(String ruleFieldvalue, String recordFieldValue , DisplayType ruleFieldtype){
+        
+        if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.STRING || ruleFieldType==Schema.DisplayType.ComboBox ||ruleFieldType==Schema.DisplayType.Picklist ||ruleFieldType==Schema.DisplayType.email||ruleFieldType==Schema.DisplayType.encryptedString||ruleFieldType==Schema.DisplayType.Phone||ruleFieldType==Schema.DisplayType.url)){
+            return (recordFieldValue.toLowerCase()<ruleFieldValue.toLowerCase());
+        } else if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.Double||ruleFieldType==Schema.DisplayType.Currency||ruleFieldType==Schema.DisplayType.Percent ||ruleFieldType==Schema.DisplayType.Integer)){
+            return (decimal.valueOf(recordFieldValue)<decimal.valueOf(ruleFieldValue));
+        }
+        return false;
+    }
+    
+    public static boolean greaterOrEqualOperation(String ruleFieldvalue, String recordFieldValue , DisplayType ruleFieldtype){
+        
+        if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.STRING || ruleFieldType==Schema.DisplayType.ComboBox ||ruleFieldType==Schema.DisplayType.Picklist ||ruleFieldType==Schema.DisplayType.email||ruleFieldType==Schema.DisplayType.encryptedString||ruleFieldType==Schema.DisplayType.Phone||ruleFieldType==Schema.DisplayType.url)){
+            return (recordFieldValue.toLowerCase()>=ruleFieldValue.toLowerCase());
+        } else if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.Double||ruleFieldType==Schema.DisplayType.Currency||ruleFieldType==Schema.DisplayType.Percent ||ruleFieldType==Schema.DisplayType.Integer)){
+            return (decimal.valueOf(recordFieldValue)>=decimal.valueOf(ruleFieldValue));
+        }
+        return false;
+    }
+    
+    public static boolean lessOrEqualOperation(String ruleFieldvalue, String recordFieldValue , DisplayType ruleFieldtype){
+        
+        if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.STRING || ruleFieldType==Schema.DisplayType.ComboBox ||ruleFieldType==Schema.DisplayType.Picklist ||ruleFieldType==Schema.DisplayType.email||ruleFieldType==Schema.DisplayType.encryptedString||ruleFieldType==Schema.DisplayType.Phone||ruleFieldType==Schema.DisplayType.url)){
+            return (recordFieldValue.toLowerCase()<=ruleFieldValue.toLowerCase());
+        } else if (recordFieldValue!=null&&(ruleFieldType==Schema.DisplayType.Double||ruleFieldType==Schema.DisplayType.Currency||ruleFieldType==Schema.DisplayType.Percent ||ruleFieldType==Schema.DisplayType.Integer)){
+            return (decimal.valueOf(recordFieldValue)<=decimal.valueOf(ruleFieldValue));
+        }
+        return false;
+    }
+    public static boolean containsOperation(String ruleFieldvalue, String recordFieldValue){
+        
+        if(recordFieldValue!=null){
+            return recordFieldValue.toLowerCase().contains(ruleFieldValue.toLowerCase());
+        }
+        return false;
+        
+    }
+    
+    public static boolean doesNotContainOperation(String ruleFieldvalue, String recordFieldValue){
+        
+        if(recordFieldValue!=null){
+            return !recordFieldValue.toLowerCase().contains(ruleFieldValue.toLowerCase());
+        }
+        return false;
+        
+    }
+    
+    public static boolean startsWithOperation(String ruleFieldvalue, String recordFieldValue){
+        
+        if(recordFieldValue!=null){
+            return recordFieldValue.startsWith(ruleFieldValue);
+        }
+        return false;
+        
+    }
+}
