@@ -1,0 +1,213 @@
+<!--
+  @description       : 
+  @author            : Charush Devgan
+  @group             : 
+  @last modified on  : 24.02.2022
+  @last modified by  : Charush Devgan
+  Modifications Log
+  Ver   Date         Author           Modification
+  1.0   23.02.2022   Charush Devgan   Initial Version
+-->
+<template>
+    <lightning-card style="margin-left:10px;" >
+        <template if:true={isLoading} class="slds-is-relative">
+            <lightning-spinner alternative-text="Loading" size="large"></lightning-spinner>
+        </template>
+        <div style="width:50%;margin-left:25%;">
+        <lightning-progress-indicator current-step={currentSection}>
+            <lightning-progress-step label="What do you need help with ?" value="Category">
+            </lightning-progress-step>
+            <lightning-progress-step label="What sort of issue are you facing ?" value="SubCategory">
+            </lightning-progress-step>
+            <lightning-progress-step label="Which Class or Asynch Service was affected ?" value="ClassId">
+            </lightning-progress-step>
+            <lightning-progress-step label="Please tell us exactly what the issue is ?" value="Description">
+            </lightning-progress-step>
+        </lightning-progress-indicator>
+        </div>
+        <ol class="slds-setup-assistant">
+            <li class="slds-setup-assistant__item">
+                <article class="slds-setup-assistant__step">
+                    <div class="slds-setup-assistant__step-summary">
+                        <div class="slds-media">
+                            <div class="slds-media__figure">
+                                <lightning-icon icon-name={categorySection.icon}
+                                                size="x-small">
+                                </lightning-icon>
+                            </div>
+                            <div class="slds-media__body slds-m-top_x-small">
+                                <div class="slds-media">
+                                    <div class="slds-setup-assistant__step-summary-content slds-media__body">
+                                        <h3 class="slds-setup-assistant__step-summary-title slds-text-heading_small navigate-cursor" onclick={openCategorySection}>What do you need help with ?</h3>
+                                        <template if:true={categorySection.visible}>
+                                            <lightning-combobox class="picklist"
+                                                                data-id="Category"
+                                                                label="Category" 
+                                                                value={category}
+                                                                disabled={categorySection.disabled}
+                                                                onchange={handleCategoryChange}
+                                                                options={categories}
+                                                                required="true">
+                                            </lightning-combobox>
+                                            <br/>
+                                            <template if:false={categorySection.disabled}>
+                                                <lightning-button variant="brand" 
+                                                                label="Next" 
+                                                                onclick={handleChangeActiveSection}
+                                                                class="slds-m-left_x-small" 
+                                                                style="margin-left:92%;">
+                                                </lightning-button>
+                                            </template>
+                                        </template>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </li>
+            <li class="slds-setup-assistant__item">
+                <article class="slds-setup-assistant__step">
+                    <div class="slds-setup-assistant__step-summary">
+                        <div class="slds-media">
+                            <div class="slds-media__figure">
+                                <lightning-icon icon-name={subCategorySection.icon}
+                                                size="x-small">
+                                </lightning-icon>
+                            </div>
+                            <div class="slds-media__body slds-m-top_x-small">
+                                <div class="slds-media">
+                                    <div class="slds-setup-assistant__step-summary-content slds-media__body">
+                                        <h3 class="slds-setup-assistant__step-summary-title slds-text-heading_small navigate-cursor" onclick={openSubCategorySection}>What sort of issue are you facing ?</h3>
+                                        <template if:true={subCategorySection.visible}>
+                                            <lightning-combobox class="picklist"
+                                                                label="Sub-Category"
+                                                                data-id="SubCategory" 
+                                                                onchange={handleSubCategoryChange}
+                                                                disabled={subCategorySection.disabled}
+                                                                value={subCategory}
+                                                                options={subCategories}
+                                                                required="true">
+                                            </lightning-combobox>
+                                            <br/>
+                                            <template if:false={subCategorySection.disabled}>
+                                                <lightning-button variant="brand" 
+                                                                label="Next" 
+                                                                onclick={handleChangeActiveSection}
+                                                                class="slds-m-left_x-small" 
+                                                                style="margin-left:92%;">
+                                                </lightning-button>
+                                            </template>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </li>
+            <li class="slds-setup-assistant__item">
+                <article class="slds-setup-assistant__step">
+                    <div class="slds-setup-assistant__step-summary">
+                        <div class="slds-media">
+                            <div class="slds-media__figure">
+                                <lightning-icon icon-name={classIdSection.icon}
+                                                size="x-small">
+                                </lightning-icon>
+                            </div>
+                            <div class="slds-media__body slds-m-top_x-small">
+                                <div class="slds-media">
+                                    <div class="slds-setup-assistant__step-summary-content slds-media__body">
+                                        <h3 class="slds-setup-assistant__step-summary-title slds-text-heading_small navigate-cursor" onclick={openClassIdSection}>Which Class or Asynch Service was affected ?</h3>
+                                        <template if:true={classIdSection.visible}>
+                                            <lightning-input label="Class / Asynch Service Id" 
+                                                             required={classIdRequired}
+                                                             data-id="ClassId"
+                                                             placeholder="Enter Class / Async Service Id"
+                                                             onchange={handleClassIdChange}
+                                                             disabled={classIdSection.disabled} 
+                                                             value={classId}>
+                                            </lightning-input>
+                                            <template if:false={classIdRequired}>
+                                                <br/>
+                                                <p>No affected classes? &nbsp;&nbsp;<span class ="navigate-cursor link" onclick={handleSkip} >skip</span></p>
+                                            </template>
+                                            <br/>
+                                            <template if:false={classIdSection.disabled}>
+                                                <lightning-button variant="brand" 
+                                                                label="Next" 
+                                                                onclick={handleChangeActiveSection}
+                                                                class="slds-m-left_x-small" 
+                                                                style="margin-left:92%;">
+                                                </lightning-button>
+                                            </template>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </li>
+            <li class="slds-setup-assistant__item">
+                <article class="slds-setup-assistant__step">
+                    <div class="slds-setup-assistant__step-summary">
+                        <div class="slds-media">
+                            <div class="slds-media__figure">
+                                <lightning-icon icon-name={descriptionSection.icon}
+                                                size="x-small">
+                                </lightning-icon>
+                            </div>
+                            <div class="slds-media__body slds-m-top_x-small">
+                                <div class="slds-media">
+                                    <div class="slds-setup-assistant__step-summary-content slds-media__body">
+                                        <h3 class="slds-setup-assistant__step-summary-title slds-text-heading_small navigate-cursor" onclick={openDescriptionSection}>Please tell us exactly what the issue is ?</h3>
+                                        <template if:true={descriptionSection.visible}>
+                                            <lightning-textarea name="input3" 
+                                                                label="Description"
+                                                                data-id="Description" 
+                                                                onchange={hanldeDescriptionUpdate}
+                                                                value={description}
+                                                                disabled={descriptionSection.disabled}
+                                                                placeholder="Explain the issue ..."
+                                                                required="true"
+                                            >
+                                            </lightning-textarea>
+                                            <lightning-input type="file" 
+                                                data-id="SupportedDocuments"
+                                                accept={acceptedFormats}
+                                                label="Upload supporting document(s)" 
+                                                onchange={handleFileUpload}
+                                            >
+                                            </lightning-input>
+                                            <div if:true={documents}>
+                                                <ul>
+                                                    <template for:each={documents} for:item="file">
+                                                        <li key={file.Title}>{file.Title}</li>
+                                                    </template>    
+                                                </ul>
+                                            </div>
+                                            <div style="margin-left:70%;">
+                                                <lightning-button variant="brand" 
+                                                                  label="Reset" 
+                                                                  onclick={handleReset}
+                                                                  class="slds-m-left_x-small">
+                                                </lightning-button>
+                                                <lightning-button variant="brand" 
+                                                                  label="Save" 
+                                                                  onclick={handleSave}
+                                                                  class="slds-m-left_x-small">
+                                                </lightning-button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </li>
+        </ol>                 
+    </lightning-card>
+</template>

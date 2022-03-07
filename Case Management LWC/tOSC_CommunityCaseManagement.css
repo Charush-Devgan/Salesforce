@@ -1,0 +1,11 @@
+.navigate-cursor {
+    cursor: pointer;
+}
+
+.link {
+    color: blue;
+}
+
+.hide {
+    display: none;
+}
